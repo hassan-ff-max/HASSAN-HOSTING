@@ -224,6 +224,11 @@
   <script>
     lucide.createIcons();
 
+    // --- GITHUB API CONFIGURATION ---
+    const GITHUB_TOKEN = "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";
+    const GITHUB_USERNAME = "hassan-ff-max"; // Updated Username
+    const GITHUB_REPO = "HASSAN-HOSTING";     // Updated Repo Name
+
     // Default Files Store
     let files = [
       { name: 'index.html', code: '<!DOCTYPE html>\n<html>\n<head>\n  <title>My Website</title>\n  <link rel="stylesheet" href="styles.css">\n</head>\n<body style="background:#0a0d14; color:#fff; font-family:sans-serif; text-align:center; padding:50px;">\n  <h1>Hello World!</h1>\n  <p>Hosted with HASSAN HOSTING Engine.</p>\n</body>\n</html>' },
@@ -363,8 +368,8 @@
       });
     }
 
-    // Deployment Processing Animation
-    function startHostingProcess() {
+    // Deployment Processing Animation & GitHub Upload
+    async function startHostingProcess() {
       const name = document.getElementById('projectName').value.trim() || 'my-site';
       const modal = document.getElementById('deployModal');
       const progressBar = document.getElementById('deployProgressBar');
@@ -374,51 +379,77 @@
 
       modal.classList.remove('hidden');
       closeBtn.classList.add('hidden');
-      progressBar.style.width = '0%';
+      progressBar.style.width = '20%';
       logs.innerHTML = '<div class="text-slate-500">> Starting deployment engine...</div>';
 
-      const steps = [
-        { pct: '25%', log: '> Parsing source files & scripts...', status: 'Parsing Files' },
-        { pct: '50%', log: '> Building edge assets & HTML bundle...', status: 'Compiling Code' },
-        { pct: '75%', log: '> Provisioning SSL certificate & DNS routes...', status: 'Securing Edge' },
-        { pct: '100%', log: `> Deployed successfully! Live at https://${name}.vercel.app`, status: 'Deployment Live!' }
-      ];
+      try {
+        statusText.innerText = 'Compiling Code';
+        progressBar.style.width = '50%';
+        logs.innerHTML += '<div>> Preparing files bundle...</div>';
 
-      let stepIdx = 0;
-      const interval = setInterval(() => {
-        if (stepIdx < steps.length) {
-          progressBar.style.width = steps[stepIdx].pct;
-          statusText.innerText = steps[stepIdx].status;
-          logs.innerHTML += `<div>${steps[stepIdx].log}</div>`;
-          logs.scrollTop = logs.scrollHeight;
-          stepIdx++;
-        } else {
-          clearInterval(interval);
-          closeBtn.classList.remove('hidden');
-          addHostedProject(name);
+        // Prepare main HTML file content
+        let htmlFile = files.find(f => f.name.endsWith('.html')) || files[0];
+        let cssFile = files.find(f => f.name.endsWith('.css'));
+        let jsFile = files.find(f => f.name.endsWith('.js'));
+
+        let fullCode = htmlFile ? htmlFile.code : '<h1>Hosted Webpage</h1>';
+        if (cssFile) fullCode += `<style>${cssFile.code}</style>`;
+        if (jsFile) fullCode += `<script>${jsFile.code}<\/script>`;
+
+        const uniqueId = Math.random().toString(36).substring(2, 10);
+        const fileName = `${uniqueId}_${name}.html`;
+        const filePath = `uploads/${fileName}`;
+
+        statusText.innerText = 'Securing Edge';
+        progressBar.style.width = '75%';
+        logs.innerHTML += '<div>> Uploading to GitHub repository...</div>';
+
+        // GitHub API Call to push file
+        const response = await fetch(`https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${filePath}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${GITHUB_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: `Deploy ${name} via Hassan Hosting`,
+            content: btoa(unescape(encodeURIComponent(fullCode)))
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('GitHub upload failed. Please check your Token & Repo name.');
         }
-      }, 700);
+
+        progressBar.style.width = '100%';
+        statusText.innerText = 'Deployment Live!';
+        
+        // GitHub Pages Raw Link or direct view link format
+        const liveUrl = `https://${GITHUB_USERNAME}.github.io/${GITHUB_REPO}/uploads/${fileName}`;
+        logs.innerHTML += `<div class="text-emerald-400">> Deployed successfully! Live at ${liveUrl}</div>`;
+        logs.scrollTop = logs.scrollHeight;
+
+        closeBtn.classList.add('hidden');
+        addHostedProject(name, liveUrl);
+        
+        // Auto close and success
+        setTimeout(() => {
+          modal.classList.add('hidden');
+        }, 1500);
+
+      } catch (err) {
+        logs.innerHTML += `<div class="text-red-400">> Error: ${err.message}</div>`;
+        statusText.innerText = 'Deployment Failed';
+        closeBtn.classList.remove('hidden');
+      }
     }
 
     function closeDeployModal() {
       document.getElementById('deployModal').classList.add('hidden');
     }
 
-    function addHostedProject(name) {
+    function addHostedProject(name, liveUrl) {
       const list = document.getElementById('hostedProjectsList');
-      
-      // Combine HTML, CSS, JS into runnable code
-      let htmlFile = files.find(f => f.name.endsWith('.html')) || files[0];
-      let cssFile = files.find(f => f.name.endsWith('.css'));
-      let jsFile = files.find(f => f.name.endsWith('.js'));
-
-      let fullCode = htmlFile ? htmlFile.code : '<h1>Hosted Webpage</h1>';
-      if (cssFile) fullCode += `<style>${cssFile.code}</style>`;
-      if (jsFile) fullCode += `<script>${jsFile.code}<\/script>`;
-
-      // Create Blob URL so link opens instantly with ZERO error
-      const blob = new Blob([fullCode], { type: 'text/html' });
-      const liveUrl = URL.createObjectURL(blob);
       
       const item = document.createElement('div');
       item.className = 'glass-card p-3 rounded-xl flex items-center justify-between text-xs';
@@ -426,8 +457,8 @@
         <div class="flex items-center gap-2.5">
           <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
           <div>
-            <div class="font-bold text-slate-200 font-mono">${name}.vercel.app</div>
-            <div class="text-[10px] text-slate-500">Deployed just now</div>
+            <div class="font-bold text-slate-200 font-mono">${name}.html</div>
+            <div class="text-[10px] text-slate-500">Live via GitHub Repo</div>
           </div>
         </div>
         <a href="${liveUrl}" target="_blank" class="px-3 py-1.5 bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600 hover:text-white rounded-lg transition font-medium text-[11px] flex items-center gap-1">
