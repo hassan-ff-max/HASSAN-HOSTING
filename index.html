@@ -406,7 +406,19 @@
 
     function addHostedProject(name) {
       const list = document.getElementById('hostedProjectsList');
-      const url = `https://${name}.vercel.app`;
+      
+      // Combine HTML, CSS, JS into runnable code
+      let htmlFile = files.find(f => f.name.endsWith('.html')) || files[0];
+      let cssFile = files.find(f => f.name.endsWith('.css'));
+      let jsFile = files.find(f => f.name.endsWith('.js'));
+
+      let fullCode = htmlFile ? htmlFile.code : '<h1>Hosted Webpage</h1>';
+      if (cssFile) fullCode += `<style>${cssFile.code}</style>`;
+      if (jsFile) fullCode += `<script>${jsFile.code}<\/script>`;
+
+      // Create Blob URL so link opens instantly with ZERO error
+      const blob = new Blob([fullCode], { type: 'text/html' });
+      const liveUrl = URL.createObjectURL(blob);
       
       const item = document.createElement('div');
       item.className = 'glass-card p-3 rounded-xl flex items-center justify-between text-xs';
@@ -418,7 +430,7 @@
             <div class="text-[10px] text-slate-500">Deployed just now</div>
           </div>
         </div>
-        <a href="${url}" target="_blank" onclick="alert('Opening hosted project URL!')" class="px-3 py-1.5 bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600 hover:text-white rounded-lg transition font-medium text-[11px] flex items-center gap-1">
+        <a href="${liveUrl}" target="_blank" class="px-3 py-1.5 bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600 hover:text-white rounded-lg transition font-medium text-[11px] flex items-center gap-1">
           <span>Visit</span>
           <i data-lucide="external-link" class="w-3 h-3"></i>
         </a>
